@@ -1,4 +1,4 @@
-﻿$apps = 'adb','liberica11-full','maven','nodejs-lts','git'
+﻿#$apps = 'adb','liberica11-full','maven','nodejs-lts','git'
 function CheckPoint-Scoop {
     $scoop = [Environment]::GetEnvironmentVariable('SCOOP', 'User')
     $scoopPath = 'D:\Scoop'
@@ -51,18 +51,31 @@ function CheckPoint-software($command, $name,$appPath, $set){
         if (!(Test-Path [System.IO.Path]::Combine($scoopPath, 'app', $appPath))) {
             #scoop install nodejs-lts
             scoop install $name
-            $set
+            if($null -ne $set) {& $set}
             #set-nodejs
         }
+<#
         else {
             $hasNodejs = scoop list 6>&1 | where-Object {$_.ToString().Contains($name)}
             if($null -ne $hasNodejs){
                 scoop install $name
-                $set
+                if($null -ne $set) {& $set}
             }
         }
+#>
     }
 }
+
+function Install-Apps {
+    CheckPoint-software javac 'liberica11-full' 'liberica11-full' $null
+    CheckPoint-software  adb 'adb' 'adb' $null
+    CheckPoint-software mvn 'maven' 'maven' set-maven
+    CheckPoint-software redis-cli 'redis' 'redis' $null
+    CheckPoint-software node 'nodejs-lts' 'nodejs-lts' set-nodejs
+    
+}
+
+
 function set-nodejs {
     npm config set prefix "D:\package\nodejs\modules"
     npm config set cache "D:\package\nodejs\cache"
@@ -81,6 +94,15 @@ function set-nuget {
     #nuget config -set temp=D:\package\nuget\NuGetScratch # 无
     
 }
+
+function set-maven {
+    Set-Location D:
+    $settings = [xml](Get-Content 'D:\Scoop\apps\maven\current\conf\settings.xml')
+    $settings.SelectNodes("//localRepository")[0]
+    
+    
+}
+
 function  test {
     Write-Host $?;
     scooq;
