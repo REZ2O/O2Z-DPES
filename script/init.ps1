@@ -50,10 +50,14 @@ function CheckPoint-software($command, $name,$appPath, $set){
         #if (!(Test-Path [System.IO.Path]::Combine($scoopPath, 'app', 'nodejs-lts'))) {
         if (!(Test-Path [System.IO.Path]::Combine($scoopPath, 'app', $appPath))) {
             #scoop install nodejs-lts
-            scoop install $name
-            if($null -ne $set) {& $set}
+           
             #set-nodejs
         }
+        else {
+            scoop uninstall $name
+        }
+        scoop install $name
+        if($null -ne $set) {& $set}
 <#
         else {
             $hasNodejs = scoop list 6>&1 | where-Object {$_.ToString().Contains($name)}
@@ -72,7 +76,6 @@ function Install-Apps {
     CheckPoint-software mvn 'maven' 'maven' set-maven
     CheckPoint-software redis-cli 'redis' 'redis' $null
     CheckPoint-software node 'nodejs-lts' 'nodejs-lts' set-nodejs
-    
 }
 
 
@@ -97,10 +100,40 @@ function set-nuget {
 
 function set-maven {
     Set-Location D:
-    $settings = [xml](Get-Content 'D:\Scoop\apps\maven\current\conf\settings.xml')
-    $settings.SelectNodes("//localRepository")[0]
-    
-    
+    $settingsPath = 'D:\Scoop\apps\maven\current\conf\settings.xml'
+    $packagePath = 'D:\package\maven\repository'
+    $mirrorsConfig = '<mirror>
+    <id>huaweicloud</id>
+    <mirrorOf>*</mirrorOf>
+    <name>huaweicloudmaven</name>
+    <url>https://mirrors.huaweicloud.com/repository/maven/</url>
+</mirror>
+<mirror>
+    <id>aliyunmaven</id>
+    <mirrorOf>*</mirrorOf>
+    <name>aliyunmavenpublic</name>
+    <url>https://maven.aliyun.com/repository/public</url>
+</mirror>'
+    $settings = [xml](Get-Content $settingsPath)
+    $namespace = new-object System.Xml.XmlNamespaceManager $settings.NameTable
+    $namespace.AddNamespace("NS", $settings.DocumentElement.NamespaceURI)
+    $result = $settings.DocumentElement.SelectNodes("//NS:localRepository", $namespace)
+    if ($result.Count -eq 0) {
+        $localRepository = $settings.CreateElement('localRepository')
+        $localRepository.InnerText= $packagePath
+        $settings.DocumentElement.SelectNodes("//NS:settings", $localRepository).PrependChild($e)
+    }else {
+        $result[0].InnerText =  $packagePath
+    }
+    $mirrors = $settings.DocumentElement.SelectNodes("//NS:mirrors", $namespace)
+    if($mirrors.Count -eq 0){
+        $mirrors = $settings.CreateElement('mirrors')
+        $mirrors.InnerXml = $mirrorsConfig
+    $settings.DocumentElement.SelectNodes("//NS:settings", $mirrors).PrependChild($e)
+    }else {
+        $mirrors.InnerXml = $mirrorsConfig
+    }
+    $settings.Save($settingsPath)
 }
 
 function  test {
